@@ -1,5 +1,16 @@
-const { internet, date } = require("faker");
-const { createConnection } = require("mysql");
+const express = require("express"),
+  app = express(),
+  { createConnection } = require("mysql"),
+  { join } = require("path"),
+  ejsMate = require("ejs-mate"),
+  bodyParser = require("body-parser");
+
+app.set("views", join(__dirname, "views"));
+app.use(express.static(join(__dirname, "public")));
+app.use(bodyParser.urlencoded({ extended: true }));
+
+app.engine("ejs", ejsMate);
+app.set("view engine", "ejs");
 
 const connection = createConnection({
   host: "localhost",
@@ -9,49 +20,35 @@ const connection = createConnection({
 });
 
 connection.connect((err) => {
-  if (err) {
-    console.log("error connection" + err.stack);
-    return;
-  }
-  console.log("connections successful: join_us database");
+  if (err) throw err;
+  console.log("connection is success on join_us database");
 });
 
-const data = [];
+// GET
+app.get("/", (req, res, next) => {
+  const q = "SELECT COUNT(*) AS count FROM users";
+  connection.query(q, (err, results, field) => {
+    if (err) throw err;
+    const count = results[0].count;
+    console.log(`the solution of query is`, count);
+    res.render("homepage", { count });
+  });
+});
 
-for (const el of Array(500)) {
-  data.push([internet.email(), date.past()]);
-}
+// POST
+app.post("/register", (err, req, res, next) => {
+  const { email } = req.body;
 
-console.log(data);
+  const q = "INSERT INTO users SET ?";
 
-const c_one = "INSERT INTO users (email, created_at) VALUES ?";
+  connection.query(q, { email }, (err, results, field) => {
+    if (err) throw err;
 
-const end_result_one = connection.query(
-  c_one,
-  [data],
-  (error, results, fields) => {
-    if (error) throw error;
     console.log(results);
-  }
-);
-
-console.log(end_result_one.sql);
-
-// READ-count the number users
-const q = "SELECT COUNT(*) AS total FROM users";
-
-connection.query(q, (error, results, fields) => {
-  if (error) throw error;
-
-  console.log(results[0].total);
+    res.redirect("/");
+  });
 });
 
-const qOne = "SELECT * FROM users ORDER BY created_at DESC";
-
-connection.query(qOne, (error, results, fields) => {
-  if (error) throw error;
-
-  console.log(results);
+app.listen(3000, () => {
+  console.log("this is port 3000");
 });
-
-connection.end();
